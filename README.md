@@ -29,6 +29,13 @@ A comprehensive Python bot that fetches data from DexScreener, focusing exclusiv
 - Volume-price correlation analysis
 - Suspicious trading behavior identification
 
+### 🔒 **Contract Verification**
+- RugCheck.xyz API integration for contract safety verification
+- Only interact with contracts marked as "Good"
+- Bundle detection and automatic blacklisting
+- Security feature analysis (mint/freeze authority, liquidity locks)
+- Holder distribution analysis
+
 ### 🗄️ **Data Storage**
 - SQLite database with comprehensive schema
 - Historical data preservation
@@ -79,6 +86,9 @@ MODEL_BACKUP_PATH=./models/backups/
 # Pocket Universe API Configuration (Optional)
 POCKET_UNIVERSE_API_KEY=your_pocket_universe_api_key_here
 
+# RugCheck.xyz API Configuration (Optional)
+RUGCHECK_API_KEY=your_rugcheck_api_key_here
+
 # Optional: External Services
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
 DISCORD_WEBHOOK_URL=your_discord_webhook_here
@@ -100,6 +110,11 @@ MAX_AGE_HOURS: float = 168.0
 ENABLE_FAKE_VOLUME_DETECTION: bool = True
 FAKE_VOLUME_THRESHOLD: float = 0.7
 VOLUME_ANOMALY_THRESHOLD: float = 5.0
+
+# RugCheck contract verification
+ENABLE_RUGCHECK: bool = True
+ONLY_GOOD_CONTRACTS: bool = True
+BUNDLE_DETECTION_THRESHOLD: float = 70.0
 ```
 
 ## Blacklist Management
@@ -161,6 +176,24 @@ python utils/blacklist_utils.py --add-coin TOKEN_ADDRESS --reason "Confirmed rug
 python utils/blacklist_utils.py --validate
 ```
 
+#### RugCheck Verification
+```bash
+# Verify single token contract
+python utils/rugcheck_utils.py --verify TOKEN_ADDRESS
+
+# Batch verify tokens from file
+python utils/rugcheck_utils.py --batch-verify tokens.txt
+
+# Detect and blacklist bundled tokens
+python utils/rugcheck_utils.py --detect-bundles tokens.txt
+
+# Comprehensive security analysis
+python utils/rugcheck_utils.py --analyze-security TOKEN_ADDRESS
+
+# Show RugCheck statistics
+python utils/rugcheck_utils.py --stats
+```
+
 ### Fake Volume Detection
 
 The bot integrates with Pocket Universe API and includes internal algorithms:
@@ -173,6 +206,21 @@ async with fake_volume_detector as detector:
     if analysis.is_fake:
         print(f"Fake volume detected: {analysis.confidence_score:.2f}")
         print(f"Reasons: {', '.join(analysis.reasons)}")
+```
+
+### RugCheck Contract Verification
+
+The bot integrates with RugCheck.xyz for comprehensive contract analysis:
+
+```python
+from filters.rugcheck_analyzer import rugcheck_analyzer
+
+async with rugcheck_analyzer as analyzer:
+    result = await analyzer.analyze_token(token_address)
+    if not result.is_good_contract:
+        print(f"Contract not safe: {result.status}")
+    if result.is_bundled:
+        print(f"Bundled supply: {result.bundle_percentage:.1f}%")
 ```
 
 ## Database Schema
@@ -216,6 +264,9 @@ Tokens are automatically blacklisted for:
 - Wash trading patterns
 - Suspicious developer activity
 - Pattern matching scam indicators
+- RugCheck contract verification failures
+- Bundle detection (>70% supply held by single address)
+- Contracts not marked as "Good" by RugCheck
 
 ### Volume Analysis Methods
 1. **Pocket Universe API**: External verification
@@ -234,6 +285,12 @@ Tokens are automatically blacklisted for:
 - Fake volume verification
 - Wash trading detection
 - Volume legitimacy scoring
+
+### RugCheck.xyz API
+- Contract safety verification
+- Bundle detection and analysis
+- Security feature verification
+- Holder distribution analysis
 
 ## Monitoring and Alerts
 

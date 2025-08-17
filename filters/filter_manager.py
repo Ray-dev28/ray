@@ -8,10 +8,11 @@ from dataclasses import dataclass
 from config import (
     FILTER_CONFIG, COIN_BLACKLIST, DEV_BLACKLIST, 
     SYMBOL_BLACKLIST_PATTERNS, NAME_BLACKLIST_PATTERNS,
-    RISKY_PATTERNS, TRUSTED_TOKENS, TRUSTED_DEXS
+    RISKY_PATTERNS, TRUSTED_TOKENS, TRUSTED_DEXS, RUGCHECK_CONFIG
 )
 from filters.fake_volume_detector import fake_volume_detector, VolumeAnalysisResult
 from filters.blacklist_manager import blacklist_manager
+from filters.rugcheck_analyzer import rugcheck_analyzer, RugCheckResult
 
 logger = logging.getLogger(__name__)
 
@@ -94,19 +95,36 @@ class TokenFilterManager:
         return result
     
     async def apply_filters_async(self, token_data: Dict[str, Any]) -> FilterResult:
-        """Apply all filters including async fake volume detection"""
+        """Apply all filters including async fake volume detection and RugCheck verification"""
         
         # First apply synchronous filters
         sync_result = self.apply_filters(token_data)
         if not sync_result.passed:
             return sync_result
         
+        token_address = token_data.get('baseToken', {}).get('address', '')
+        
+        # Apply RugCheck verification if enabled
+        if RUGCHECK_CONFIG.ENABLE_RUGCHECK and token_address:
+            rugcheck_result = await self._check_rugcheck_verification(token_data)
+            if not rugcheck_result.passed:
+                # Auto-blacklist tokens that fail RugCheck
+                if token_address:
+                    blacklist_manager.add_coin_to_blacklist(
+                        token_address, 
+                        f"RugCheck failed: {rugcheck_result.reason}",
+                        auto_detected=True
+                    )
+                return rugcheck_result
+            
+            sync_result.warnings.extend(rugcheck_result.warnings)
+            sync_result.risk_score += rugcheck_result.risk_score
+        
         # Apply fake volume detection if enabled
         if FILTER_CONFIG.ENABLE_FAKE_VOLUME_DETECTION:
             volume_result = await self._check_fake_volume(token_data)
             if not volume_result.passed:
                 # Auto-blacklist tokens with fake volume
-                token_address = token_data.get('baseToken', {}).get('address', '')
                 if token_address:
                     blacklist_manager.add_coin_to_blacklist(
                         token_address, 
@@ -360,6 +378,77 @@ class TokenFilterManager:
                 passed=True,
                 warnings=["Fake volume detection failed"],
                 risk_score=0.1
+            )
+    
+    async def _check_rugcheck_verification(self, token_data: Dict[str, Any]) -> FilterResult:
+        """Check token using RugCheck.xyz API for contract verification and bundle detection"""
+        try:
+            token_address = token_data.get('baseToken', {}).get('address', '')
+            if not token_address:
+                return FilterResult(
+                    passed=True,
+                    warnings=["No token address for RugCheck verification"],
+                    risk_score=0.1
+                )
+            
+            async with rugcheck_analyzer as analyzer:
+                rugcheck_result = await analyzer.analyze_token(token_address)
+                
+                # Check if contract is marked as "Good"
+                if RUGCHECK_CONFIG.ONLY_GOOD_CONTRACTS and not rugcheck_result.is_good_contract:
+                    return FilterResult(
+                        passed=False,
+                        reason=f"Contract not marked as 'Good' by RugCheck (status: {rugcheck_result.status})",
+                        risk_score=rugcheck_result.risk_score,
+                        warnings=rugcheck_result.reasons
+                    )
+                
+                # Check for bundling
+                if rugcheck_result.is_bundled:
+                    return FilterResult(
+                        passed=False,
+                        reason=f"Token supply is bundled ({rugcheck_result.bundle_percentage:.1f}% held by top holder)",
+                        risk_score=rugcheck_result.risk_score,
+                        warnings=rugcheck_result.reasons
+                    )
+                
+                # Even if passed, collect warnings for risk assessment
+                warnings = []
+                risk_score = 0.0
+                
+                # Security warnings
+                if not rugcheck_result.mint_authority_disabled:
+                    warnings.append("Mint authority not disabled")
+                    risk_score += 0.2
+                
+                if not rugcheck_result.freeze_authority_disabled:
+                    warnings.append("Freeze authority not disabled")
+                    risk_score += 0.1
+                
+                if not rugcheck_result.liquidity_locked:
+                    warnings.append("Liquidity not locked")
+                    risk_score += 0.3
+                
+                # High holder concentration warning (below bundle threshold but still concerning)
+                if rugcheck_result.bundle_percentage > RUGCHECK_CONFIG.MAX_TOP_HOLDER_PERCENTAGE:
+                    warnings.append(f"High holder concentration: {rugcheck_result.bundle_percentage:.1f}%")
+                    risk_score += 0.2
+                
+                # Add other RugCheck warnings
+                warnings.extend(rugcheck_result.reasons)
+                
+                return FilterResult(
+                    passed=True,
+                    warnings=warnings,
+                    risk_score=min(risk_score + rugcheck_result.risk_score * 0.5, 1.0)
+                )
+                
+        except Exception as e:
+            logger.error(f"Error during RugCheck verification: {e}")
+            return FilterResult(
+                passed=True,  # Don't fail on RugCheck errors, just warn
+                warnings=["RugCheck verification failed"],
+                risk_score=0.2
             )
     
     def add_to_blacklist(self, blacklist_type: str, address: str, reason: str = ""):

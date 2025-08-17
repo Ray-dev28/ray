@@ -104,6 +104,24 @@ class PocketUniverseConfig:
     TOKEN_ANALYSIS_ENDPOINT: str = "/v1/token/analyze"
     WASH_TRADING_ENDPOINT: str = "/v1/trading/wash-detection"
 
+@dataclass
+class RugCheckConfig:
+    """RugCheck.xyz API configuration for contract verification"""
+    ENABLE_RUGCHECK: bool = True
+    API_BASE_URL: str = "https://api.rugcheck.xyz"
+    API_TIMEOUT: int = 15
+    MAX_RETRIES: int = 3
+    CACHE_DURATION: int = 600  # Cache results for 10 minutes
+    
+    # Contract verification settings
+    ONLY_GOOD_CONTRACTS: bool = True  # Only interact with "Good" contracts
+    BUNDLE_DETECTION_THRESHOLD: float = 70.0  # Percentage threshold for bundle detection
+    MAX_TOP_HOLDER_PERCENTAGE: float = 50.0  # Max percentage for single holder
+    
+    # API endpoints
+    TOKEN_SCAN_ENDPOINT: str = "/tokens/scan"
+    BULK_SCAN_ENDPOINT: str = "/tokens/bulk-scan"
+
 # Global configuration instances
 API_CONFIG = APIConfig()
 DB_CONFIG = DatabaseConfig()
@@ -112,6 +130,7 @@ MONITORING_CONFIG = MonitoringConfig()
 SOLANA_CONFIG = SolanaConfig()
 FILTER_CONFIG = FilterConfig()
 POCKET_UNIVERSE_CONFIG = PocketUniverseConfig()
+RUGCHECK_CONFIG = RugCheckConfig()
 
 # Feature extraction configuration
 FEATURES_CONFIG = {
