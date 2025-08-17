@@ -1,6 +1,22 @@
-# Solana Token Analysis Bot
+# 🤖 Solana Token Analysis Bot
 
-A comprehensive Python bot that fetches data from DexScreener, focusing exclusively on Solana tokens. The bot uses AI to analyze and save every token that got rugged, pumped, or represents new pairs, with advanced filtering and blacklisting capabilities to identify patterns and avoid scams.
+A comprehensive, production-ready Python bot that monitors Solana tokens from DexScreener in real-time. Features advanced AI analysis, automated trading via ToxiSol, comprehensive filtering systems, and instant Telegram notifications. Built for serious crypto traders and analysts.
+
+## 🚀 Quick Start
+
+```bash
+git clone https://github.com/yourusername/solana-token-bot.git
+cd solana-token-bot
+python -m venv bot_env
+source bot_env/bin/activate  # Linux/macOS
+# or bot_env\Scripts\activate  # Windows
+pip install -r requirements.txt
+cp .env .env.local
+# Edit .env.local with your credentials
+python main.py
+```
+
+📖 **[Complete Installation Guide](INSTALL.md)** | 🔧 **[Configuration Guide](#configuration)**
 
 ## Features
 
@@ -42,28 +58,47 @@ A comprehensive Python bot that fetches data from DexScreener, focusing exclusiv
 - Pattern analysis storage
 - Performance metrics tracking
 
+### 💰 **Automated Trading**
+- ToxiSol integration via Telegram
+- Automated buy/sell execution
+- Risk-based position sizing
+- Real-time trade notifications
+- Comprehensive trade tracking and statistics
+
+### 📱 **Telegram Integration**
+- Real-time notifications for all events
+- Trade execution confirmations
+- Hourly statistics reports
+- Error alerts and system status
+- Interactive bot commands
+
 ## Installation
 
-1. **Clone the repository**
+### 📖 **[Complete Installation Guide](INSTALL.md)**
+
+For detailed step-by-step installation instructions, including system setup, Telegram bot creation, and configuration, please see the **[Installation Guide](INSTALL.md)**.
+
+### Quick Setup (Experienced Users):
+
 ```bash
-git clone <repository-url>
+# 1. Clone and setup
+git clone https://github.com/yourusername/solana-token-bot.git
 cd solana-token-bot
-```
+python -m venv bot_env
+source bot_env/bin/activate
 
-2. **Install dependencies**
-```bash
+# 2. Install dependencies
 pip install -r requirements.txt
-```
 
-3. **Configure environment variables**
-```bash
-cp .env.example .env
-# Edit .env with your configuration
-```
+# 3. Configure environment
+cp .env .env.local
+# Edit .env.local with your API keys and credentials
 
-4. **Initialize the database**
-```bash
+# 4. Initialize database
 python -c "from database.database import init_database; init_database()"
+
+# 5. Run the bot
+python main.py
 ```
 
 ## Configuration
