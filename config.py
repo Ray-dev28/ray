@@ -52,13 +52,46 @@ class SolanaConfig:
     CHAIN_ID: str = "solana"
     MIN_LIQUIDITY_USD: float = 1000.0  # Minimum liquidity to consider
     MIN_VOLUME_24H_USD: float = 10000.0  # Minimum 24h volume to consider
+
+@dataclass
+class FilterConfig:
+    """Filtering and blacklist configuration"""
+    # General filtering criteria
+    ENABLE_FILTERS: bool = True
+    MIN_MARKET_CAP_USD: float = 50000.0  # Minimum market cap to consider
+    MAX_MARKET_CAP_USD: float = 100000000.0  # Maximum market cap to consider
+    MIN_AGE_HOURS: float = 0.5  # Minimum token age in hours
+    MAX_AGE_HOURS: float = 168.0  # Maximum token age in hours (7 days)
     
+    # Volume and liquidity filters
+    MIN_LIQUIDITY_RATIO: float = 0.1  # Min liquidity/volume ratio
+    MAX_PRICE_IMPACT_PERCENT: float = 10.0  # Max price impact for $1000 trade
+    MIN_HOLDERS_COUNT: int = 10  # Minimum number of holders
+    
+    # Trading filters
+    MIN_TRANSACTIONS_5M: int = 5  # Minimum transactions in 5 minutes
+    MIN_UNIQUE_WALLETS_5M: int = 3  # Minimum unique wallets in 5 minutes
+    MAX_SINGLE_WALLET_PERCENTAGE: float = 50.0  # Max percentage owned by single wallet
+    
+    # Risk filters
+    ENABLE_HONEYPOT_CHECK: bool = True
+    ENABLE_RUG_RISK_CHECK: bool = True
+    MAX_DEV_WALLET_PERCENTAGE: float = 20.0  # Max percentage held by dev wallet
+    REQUIRE_VERIFIED_CONTRACT: bool = False
+    REQUIRE_AUDIT: bool = False
+    
+    # Social filters
+    MIN_TELEGRAM_MEMBERS: int = 0
+    MIN_TWITTER_FOLLOWERS: int = 0
+    REQUIRE_WEBSITE: bool = False
+
 # Global configuration instances
 API_CONFIG = APIConfig()
 DB_CONFIG = DatabaseConfig()
 AI_CONFIG = AIConfig()
 MONITORING_CONFIG = MonitoringConfig()
 SOLANA_CONFIG = SolanaConfig()
+FILTER_CONFIG = FilterConfig()
 
 # Feature extraction configuration
 FEATURES_CONFIG = {
@@ -87,3 +120,96 @@ CLASSIFICATION_LABELS = {
     2: "rug",
     3: "new_pair"
 }
+
+# Blacklists Configuration
+COIN_BLACKLIST = [
+    # Known scam tokens (add token addresses here)
+    # Example: "TokenAddressHere1234567890123456789012345",
+    
+    # Common scam patterns (partial matches)
+    "SCAM",
+    "TEST",
+    "FAKE",
+    "COPY",
+    "CLONE",
+]
+
+DEV_BLACKLIST = [
+    # Known scammer/rug pull developer wallet addresses
+    # Example: "DevWalletAddress1234567890123456789012345",
+    
+    # Add known malicious developer addresses here
+    # These should be full wallet addresses
+]
+
+# Token symbol blacklist patterns
+SYMBOL_BLACKLIST_PATTERNS = [
+    r".*SCAM.*",
+    r".*TEST.*",
+    r".*FAKE.*",
+    r".*BOT.*",
+    r".*COPY.*",
+    r".*CLONE.*",
+    r"^\$.*",  # Tokens starting with $
+    r".*MOON.*",
+    r".*100X.*",
+    r".*1000X.*",
+]
+
+# Token name blacklist patterns
+NAME_BLACKLIST_PATTERNS = [
+    r".*scam.*",
+    r".*test.*",
+    r".*fake.*",
+    r".*copy.*",
+    r".*clone.*",
+    r".*airdrop.*",
+    r".*free.*",
+    r".*giveaway.*",
+    r".*presale.*",
+    r".*private sale.*",
+]
+
+# Risky token patterns
+RISKY_PATTERNS = {
+    "suspicious_names": [
+        r".*elon.*",
+        r".*musk.*",
+        r".*doge.*killer.*",
+        r".*shib.*killer.*",
+        r".*safe.*",
+        r".*moon.*",
+        r".*rocket.*",
+        r".*diamond.*hands.*",
+    ],
+    "pump_indicators": [
+        r".*pump.*",
+        r".*moon.*",
+        r".*rocket.*",
+        r".*lambo.*",
+        r".*100x.*",
+        r".*1000x.*",
+        r".*to.*moon.*",
+    ]
+}
+
+# Whitelist for trusted tokens (optional)
+TRUSTED_TOKENS = [
+    # Major Solana tokens that should never be filtered
+    "So11111111111111111111111111111111111111112",  # Wrapped SOL
+    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",  # USDC
+    "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",  # USDT
+    # Add other trusted token addresses
+]
+
+# DEX whitelist - trusted DEXs
+TRUSTED_DEXS = [
+    "raydium",
+    "orca",
+    "jupiter",
+    "serum",
+    "aldrin",
+    "saber",
+    "mercurial",
+    "lifinity",
+]
