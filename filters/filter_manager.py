@@ -1,5 +1,6 @@
 import re
 import logging
+import asyncio
 from typing import Dict, List, Optional, Tuple, Any
 from datetime import datetime, timedelta
 from dataclasses import dataclass
@@ -9,6 +10,8 @@ from config import (
     SYMBOL_BLACKLIST_PATTERNS, NAME_BLACKLIST_PATTERNS,
     RISKY_PATTERNS, TRUSTED_TOKENS, TRUSTED_DEXS
 )
+from filters.fake_volume_detector import fake_volume_detector, VolumeAnalysisResult
+from filters.blacklist_manager import blacklist_manager
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +92,33 @@ class TokenFilterManager:
             )
         
         return result
+    
+    async def apply_filters_async(self, token_data: Dict[str, Any]) -> FilterResult:
+        """Apply all filters including async fake volume detection"""
+        
+        # First apply synchronous filters
+        sync_result = self.apply_filters(token_data)
+        if not sync_result.passed:
+            return sync_result
+        
+        # Apply fake volume detection if enabled
+        if FILTER_CONFIG.ENABLE_FAKE_VOLUME_DETECTION:
+            volume_result = await self._check_fake_volume(token_data)
+            if not volume_result.passed:
+                # Auto-blacklist tokens with fake volume
+                token_address = token_data.get('baseToken', {}).get('address', '')
+                if token_address:
+                    blacklist_manager.add_coin_to_blacklist(
+                        token_address, 
+                        f"Fake volume detected: {volume_result.reason}",
+                        auto_detected=True
+                    )
+                return volume_result
+            
+            sync_result.warnings.extend(volume_result.warnings)
+            sync_result.risk_score += volume_result.risk_score
+        
+        return sync_result
     
     def _check_blacklists(self, token_data: Dict[str, Any]) -> FilterResult:
         """Check token and dev against blacklists"""
@@ -291,6 +321,46 @@ class TokenFilterManager:
                 result.risk_score += 0.3
         
         return result
+    
+    async def _check_fake_volume(self, token_data: Dict[str, Any]) -> FilterResult:
+        """Check for fake volume using Pocket Universe API and internal algorithms"""
+        try:
+            async with fake_volume_detector as detector:
+                volume_analysis = await detector.analyze_volume(token_data)
+                
+                if volume_analysis.is_fake:
+                    return FilterResult(
+                        passed=False,
+                        reason=f"Fake volume detected (confidence: {volume_analysis.confidence_score:.2f})",
+                        risk_score=volume_analysis.confidence_score,
+                        warnings=volume_analysis.reasons
+                    )
+                else:
+                    # Even if not fake, add warnings for suspicious patterns
+                    warnings = []
+                    risk_score = 0.0
+                    
+                    if volume_analysis.wash_trading_score > 0.3:
+                        warnings.append(f"Potential wash trading detected (score: {volume_analysis.wash_trading_score:.2f})")
+                        risk_score += volume_analysis.wash_trading_score * 0.3
+                    
+                    if volume_analysis.volume_legitimacy_score < 0.7:
+                        warnings.append(f"Low volume legitimacy score: {volume_analysis.volume_legitimacy_score:.2f}")
+                        risk_score += (1.0 - volume_analysis.volume_legitimacy_score) * 0.2
+                    
+                    return FilterResult(
+                        passed=True,
+                        warnings=warnings,
+                        risk_score=risk_score
+                    )
+                    
+        except Exception as e:
+            logger.error(f"Error during fake volume detection: {e}")
+            return FilterResult(
+                passed=True,
+                warnings=["Fake volume detection failed"],
+                risk_score=0.1
+            )
     
     def add_to_blacklist(self, blacklist_type: str, address: str, reason: str = ""):
         """Add an address to the appropriate blacklist"""

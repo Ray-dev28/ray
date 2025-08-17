@@ -84,6 +84,25 @@ class FilterConfig:
     MIN_TELEGRAM_MEMBERS: int = 0
     MIN_TWITTER_FOLLOWERS: int = 0
     REQUIRE_WEBSITE: bool = False
+    
+    # Fake volume detection
+    ENABLE_FAKE_VOLUME_DETECTION: bool = True
+    FAKE_VOLUME_THRESHOLD: float = 0.7  # Confidence threshold for fake volume detection
+    VOLUME_ANOMALY_THRESHOLD: float = 5.0  # Threshold for volume anomaly detection
+
+@dataclass
+class PocketUniverseConfig:
+    """Pocket Universe API configuration for fake volume detection"""
+    ENABLE_POCKET_UNIVERSE: bool = True
+    API_BASE_URL: str = "https://api.pocketuniverse.app"
+    API_TIMEOUT: int = 10
+    MAX_RETRIES: int = 3
+    CACHE_DURATION: int = 300  # Cache results for 5 minutes
+    
+    # Fake volume detection endpoints
+    VOLUME_CHECK_ENDPOINT: str = "/v1/volume/verify"
+    TOKEN_ANALYSIS_ENDPOINT: str = "/v1/token/analyze"
+    WASH_TRADING_ENDPOINT: str = "/v1/trading/wash-detection"
 
 # Global configuration instances
 API_CONFIG = APIConfig()
@@ -92,6 +111,7 @@ AI_CONFIG = AIConfig()
 MONITORING_CONFIG = MonitoringConfig()
 SOLANA_CONFIG = SolanaConfig()
 FILTER_CONFIG = FilterConfig()
+POCKET_UNIVERSE_CONFIG = PocketUniverseConfig()
 
 # Feature extraction configuration
 FEATURES_CONFIG = {
